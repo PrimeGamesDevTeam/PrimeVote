@@ -5,21 +5,24 @@ import net.primegames.data.VoteSite;
 import net.primegames.event.VoteClaimedEvent;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.bukkit.entity.Player;
 
 import java.util.logging.Level;
 
 public class SendClaimedVoteTask extends VoteTask{
 
     private final String username;
+    private final Player player;
 
-    public SendClaimedVoteTask(VoteSite site, String username) {
+    public SendClaimedVoteTask(VoteSite site, Player player) {
         super(site);
-        this.username = username;
+        this.player = player;
+        this.username = site.correctUserName(player);
     }
 
     @Override
     protected HttpUriRequest onRun() {
-        return new HttpPost(site.getClaimUrl(username));
+        return new HttpPost(site.getClaimUrl(player));
     }
 
     @Override

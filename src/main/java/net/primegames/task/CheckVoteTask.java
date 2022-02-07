@@ -3,24 +3,28 @@ package net.primegames.task;
 import net.primegames.data.VoteSite;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.bukkit.entity.Player;
+
+import java.util.UUID;
 
 public class CheckVoteTask extends VoteTask {
 
-    private final String username;
+    private final UUID uuid;
 
-    public CheckVoteTask(VoteSite site, String username) {
+    public CheckVoteTask(VoteSite site, Player player) {
         super(site);
-        this.username = username;
+        this.uuid = player.getUniqueId();
     }
 
     @Override
     protected HttpUriRequest onRun() {
-        return new HttpGet(site.getCheckUrl(username));
+        String checkUrl = site.getCheckUrl(uuid);
+        return checkUrl != null ? new HttpGet(checkUrl) : null;
     }
 
     @Override
     protected void onResponse(String response, int lineNumber) {
-        site.handleFetchResponse(response, username);
+        site.handleFetchResponse(response, uuid);
         terminateReader();
     }
 }

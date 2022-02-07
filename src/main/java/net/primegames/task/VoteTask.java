@@ -25,6 +25,9 @@ public abstract class VoteTask implements Runnable {
         try {
             final CloseableHttpClient httpClient = HttpClients.createDefault();
             final HttpUriRequest request = onRun();
+            if (onRun() == null) {
+                return;
+            }
             request.addHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9) Gecko/2008052906 Firefox/3.0");
             CloseableHttpResponse response = httpClient.execute(request);
             BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));

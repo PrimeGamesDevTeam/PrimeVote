@@ -10,7 +10,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +69,7 @@ public final class PrimeVote {
     }
 
     public void checkVotes(Player player) {
-        CompletableFuture.runAsync(new CheckAllVoteTask(voteSites, player.getName()));
+        CompletableFuture.runAsync(new CheckAllVoteTask(voteSites, player));
     }
 
     public void listVotesSites(Player player) {
@@ -81,14 +80,9 @@ public final class PrimeVote {
         player.sendMessage(builder.toString());
     }
 
-    public static String niceName(String player) {
-        FloodgateApi api = FloodgateApi.getInstance();
-        return player.replace(api.getPlayerPrefix(), "").toLowerCase();
-    }
-
     public boolean hasUnclaimedVotes(Player player) {
         for (VoteSite site : voteSites.values()) {
-            if (site.canClaim(player.getName())) {
+            if (site.canClaim(player.getUniqueId())) {
                 return true;
             }
         }

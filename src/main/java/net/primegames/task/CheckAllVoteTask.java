@@ -3,7 +3,7 @@ package net.primegames.task;
 import com.google.common.net.HttpHeaders;
 import net.primegames.data.ClaimStatus;
 import net.primegames.data.VoteSite;
-import org.apache.http.client.ClientProtocolException;
+import net.primegames.utils.LoggerUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -18,16 +18,18 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.UUID;
 
 public class CheckAllVoteTask implements Runnable {
 
     private final ArrayList<VoteSite> sites = new ArrayList<>();
-    private final String username;
+    private final UUID uuid;
+    private final String name;
 
-    public CheckAllVoteTask(HashMap<String, VoteSite> sites, String username){
-        this.username = username;
+    public CheckAllVoteTask(HashMap<String, VoteSite> sites, Player player){
+        this.uuid = player.getUniqueId();
         sites.forEach((key, value) -> this.sites.add(value));
+        this.name = player.getName();
     }
 
     @Override
@@ -36,7 +38,12 @@ public class CheckAllVoteTask implements Runnable {
         try {
             final CloseableHttpClient httpClient = HttpClients.createDefault();
             for (VoteSite site : sites) {
-                HttpUriRequest request = new HttpGet(site.getCheckUrl(username));
+                String checkUrl = site.getCheckUrl(uuid);
+                if (checkUrl == null){
+                    LoggerUtils.info("Player " +  this.name +" logged out while checking vote sites.");
+                    continue;
+                }
+                HttpUriRequest request = new HttpGet(checkUrl);
                 request.addHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9) Gecko/2008052906 Firefox/3.0");
                 CloseableHttpResponse response = httpClient.execute(request);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
@@ -51,8 +58,9 @@ public class CheckAllVoteTask implements Runnable {
     }
 
     private void handleResponses(HashMap<VoteSite, String> responses){
-        Player player = Bukkit.getPlayer(username);
+        Player player = Bukkit.getPlayer(uuid);
         if (player == null){
+            LoggerUtils.info("player: " + name + " logged out while checking vote sites.");
             return;
         }
         ArrayList<VoteSite> unclaimed = new ArrayList<>();
@@ -61,7 +69,7 @@ public class CheckAllVoteTask implements Runnable {
             player.sendMessage("§cNo vote sites found.");
         }
         responses.forEach((site, response) -> {
-            ClaimStatus status = site.handleFetchResponse(response, username);
+            ClaimStatus status = site.handleFetchResponse(response, player.getUniqueId());
             switch (status) {
                 case AVAILABLE -> unclaimed.add(site);
                 case NOT_VOTED -> notVoted.add(site);

@@ -7,7 +7,7 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * called when a vite is successfully claimed on server list <@link VoteSite>>
+ * called when a vote is successfully claimed on server list <@link VoteSite>>
  */
 public class VoteClaimedEvent extends Event {
 

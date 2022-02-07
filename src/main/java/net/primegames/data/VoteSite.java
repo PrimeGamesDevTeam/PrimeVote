@@ -4,13 +4,15 @@ import lombok.Getter;
 import lombok.NonNull;
 import net.primegames.PrimeVote;
 import net.primegames.event.VoteClaimEvent;
-import net.primegames.event.VoteClaimStatusUpdateEvent;
+import net.primegames.player.BedrockPlayer;
+import net.primegames.player.BedrockPlayerManager;
 import net.primegames.task.CheckVoteTask;
 import net.primegames.task.SendClaimedVoteTask;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -75,7 +77,7 @@ public class VoteSite {
     private final String checkUrl;
     private final String claimUrl;
     private final String checkTopUrl;
-    private final ArrayList<String> availableClaims = new ArrayList<>();
+    private final ArrayList<UUID> availableClaims = new ArrayList<>();
 
     public VoteSite(String name, String voteLink, String checkUrl, String claimUrl, String checkTopUrl, String apiKey) {
         this.name = name;
@@ -85,56 +87,59 @@ public class VoteSite {
         this.checkTopUrl = checkTopUrl.replace("{ServerKey}", apiKey);
     }
 
-    public String getClaimUrl(String username) {
-        return claimUrl.replace("{Username}", PrimeVote.niceName(username));
+    public String getClaimUrl(Player player) {
+        return claimUrl.replace("{Username}", correctUserName(player));
     }
 
-    public String getCheckUrl(String username) {
-        return checkUrl.replace("{Username}", PrimeVote.niceName(username));
+    public String getCheckUrl(@NonNull UUID uuid){
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null){
+            return null;
+        }
+        return getCheckUrl(player);
+    }
+
+    public String getCheckUrl(Player player) {
+        return checkUrl.replace("{Username}", correctUserName(player));
     }
 
     public String getCheckTopUrl(Period period) {
         return checkTopUrl.replace("{Period}", period.toString());
     }
 
-    public boolean canClaim(String username) {
-        return availableClaims.contains(username.toLowerCase());
+    public boolean canClaim(UUID uuid) {
+        return availableClaims.contains(uuid);
     }
 
-    public void addAvailableClaim(String username) {
-        availableClaims.add(username.toLowerCase());
+    public void addAvailableClaim(UUID uuid) {
+        availableClaims.add(uuid);
     }
 
-    public boolean claimVote(String username) {
-        Player player = Bukkit.getPlayer(username);
-        if (player != null && availableClaims.contains(username.toLowerCase())) {
+    public boolean claimVote(Player player) {
+        if (availableClaims.contains(player.getUniqueId())) {
             VoteClaimEvent event = new VoteClaimEvent(player, this);
             event.callEvent();
             if(PrimeVote.getInstance().getReward().sendReward(player)){
                 event.setStatus(ClaimStatus.CLAIMED);
             }
             if (event.getStatus().equals(ClaimStatus.CLAIMED)){
-                availableClaims.remove(username.toLowerCase());
-                CompletableFuture.runAsync(new SendClaimedVoteTask(this, username));
+                availableClaims.remove(player.getUniqueId());
+                CompletableFuture.runAsync(new SendClaimedVoteTask(this, player));
             }
             return true;
         }
         return false;
     }
 
-    public boolean claimVote(Player player) {
-        return claimVote(player.getName());
-    }
-
     public void checkVote(Player player) {
-        CompletableFuture.runAsync(new CheckVoteTask(this, player.getName()));
+        CompletableFuture.runAsync(new CheckVoteTask(this, player));
     }
 
-    public ClaimStatus handleFetchResponse(String response, String username) {
+    public ClaimStatus handleFetchResponse(String response, UUID serverUuid) {
         switch (response) {
             case "1" -> {
-                addAvailableClaim(username);
-                Player player = Bukkit.getPlayer(username);
+                addAvailableClaim(serverUuid);
+                Player player = Bukkit.getPlayer(serverUuid);
                 if (player != null) {
                     player.sendMessage("§aYou have an unclaimed vote from " + getVoteLink() + ".Type §c/vote claim §ato claim it.");
                 }
@@ -148,6 +153,14 @@ public class VoteSite {
             }
         }
         return ClaimStatus.UNKNOWN;
+    }
+
+    public String correctUserName(Player player){
+        BedrockPlayer bedrockPlayer = BedrockPlayerManager.getInstance().getPlayer(player);
+        if (bedrockPlayer != null){
+            return bedrockPlayer.getUsername();
+        }
+        return player.getName();
     }
 
 }
